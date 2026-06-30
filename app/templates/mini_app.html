@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="/static/css/mini-app.css">
+{% endblock %}
+
+{% block content %}
+<div id="root"></div>
+<script>
+  window.__APP_CONFIG__ = {
+    giveawayId: {{ giveaway_id | tojson }},
+    baseSite: {{ base_site | tojson }},
+    hcaptchaSiteKey: {{ hcaptcha_site_key | tojson }}
+  };
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://js.hcaptcha.com/1/api.js?render=explicit&hl=ru" async defer></script>
+<script src="/static/dist/mini-app.js"></script>
+{% endblock %}
