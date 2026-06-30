@@ -1,4 +1,6 @@
-from datetime import datetime
+import re
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
@@ -9,11 +11,12 @@ from aiogram.types import CallbackQuery, Message
 from app.api.dao import GiveawayDAO
 from app.api.models import GiveawayStatus
 from app.bot.create_bot import bot
-from app.bot.keyboards.kbs import channel_request_keyboard, confirm_giveaway_keyboard, main_keyboard
+from app.bot.keyboards.kbs import button_color_keyboard, channel_request_keyboard, confirm_giveaway_keyboard, main_keyboard
 from app.config import settings
-from app.services.giveaways import ensure_user, normalize_datetime
+from app.services.giveaways import ensure_user, normalize_datetime, now_utc
 
 admin_router = Router()
+MSK_TZ = ZoneInfo("Europe/Moscow")
 
 
 class GiveawayCreation(StatesGroup):
@@ -22,13 +25,50 @@ class GiveawayCreation(StatesGroup):
     button_color = State()
     prize_places = State()
     starts_at = State()
-    ends_at = State()
+    duration = State()
+
+
+RELATIVE_TIME_HINT = "2:30 или 1d 02:30"
+RELATIVE_TIME_RE = re.compile(r"^(?:(?P<days>\d+)\s*(?:d|д))?\s*(?P<hours>\d{1,3}):(?P<minutes>\d{2})(?::(?P<seconds>\d{2}))?$")
 
 
 def _parse_datetime(value: str) -> datetime:
     normalized = value.strip().replace(" ", "T")
     parsed = datetime.fromisoformat(normalized)
-    return normalize_datetime(parsed)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=MSK_TZ)
+    else:
+        parsed = parsed.astimezone(MSK_TZ)
+    return parsed.astimezone(timezone.utc)
+
+
+def _format_msk(value: datetime) -> str:
+    return normalize_datetime(value).astimezone(MSK_TZ).strftime("%Y-%m-%d %H:%M MSK")
+
+
+def _parse_relative_duration(value: str) -> timedelta:
+    text = value.strip().lower().replace("час", "h")
+    match = RELATIVE_TIME_RE.match(text)
+    if not match:
+        raise ValueError("invalid duration")
+
+    days = int(match.group("days") or 0)
+    hours = int(match.group("hours"))
+    minutes = int(match.group("minutes"))
+    seconds = int(match.group("seconds") or 0)
+    if minutes >= 60 or seconds >= 60:
+        raise ValueError("invalid duration")
+    duration = timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
+    if duration <= timedelta(0):
+        raise ValueError("invalid duration")
+    return duration
+
+
+def _resolve_schedule(starts_at: datetime, duration: timedelta, *, now: datetime | None = None) -> tuple[datetime, datetime]:
+    current = now or now_utc()
+    actual_start = max(starts_at, current)
+    actual_end = actual_start + duration
+    return actual_start, actual_end
 
 
 def _format_preview(data: dict) -> str:
@@ -40,8 +80,9 @@ def _format_preview(data: dict) -> str:
         f"<b>Сообщение:</b> {data['announcement_message']}\n"
         f"<b>Цвет кнопки:</b> {data['button_color']}\n"
         f"<b>Призовых мест:</b> {data['prize_places']}\n"
-        f"<b>Начало:</b> {data['starts_at'].isoformat()}\n"
-        f"<b>Завершение:</b> {data['ends_at'].isoformat()}"
+        f"<b>Начало:</b> {_format_msk(data['starts_at'])}\n"
+        f"<b>Длительность:</b> {data['duration']}\n"
+        "<b>Завершение:</b> будет рассчитано при подтверждении"
     )
 
 
@@ -109,27 +150,25 @@ async def set_channel(message: Message, state: FSMContext) -> None:
 async def set_message(message: Message, state: FSMContext) -> None:
     await state.update_data(announcement_message=message.text.strip())
     await state.set_state(GiveawayCreation.button_color)
-    await message.answer("Введите цвет кнопки в формате `#2EA6FF` или `2EA6FF`.")
+    await message.answer(
+        "Выберите цвет кнопки из доступных вариантов.",
+        reply_markup=button_color_keyboard(),
+    )
+
+
+@admin_router.callback_query(GiveawayCreation.button_color, F.data.startswith("giveaway:color:"))
+async def set_color(callback: CallbackQuery, state: FSMContext) -> None:
+    color = callback.data.removeprefix("giveaway:color:")
+    await state.update_data(button_color=color)
+    await state.set_state(GiveawayCreation.prize_places)
+    await callback.message.edit_text(f"Цвет кнопки выбран: <code>{color}</code>")
+    await callback.message.answer("Сколько призовых мест будет в розыгрыше?")
+    await callback.answer()
 
 
 @admin_router.message(GiveawayCreation.button_color, F.from_user.id == settings.ADMIN_ID)
-async def set_color(message: Message, state: FSMContext) -> None:
-    value = message.text.strip()
-    if not value.startswith("#"):
-        value = f"#{value}"
-    if len(value) != 7:
-        await message.answer("Нужен шестизначный hex-цвет, например `#2EA6FF`.")
-        return
-
-    try:
-        int(value[1:], 16)
-    except ValueError:
-        await message.answer("Неверный hex-цвет. Повторите ввод.")
-        return
-
-    await state.update_data(button_color=value.upper())
-    await state.set_state(GiveawayCreation.prize_places)
-    await message.answer("Сколько призовых мест будет в розыгрыше?")
+async def set_color_fallback(message: Message) -> None:
+    await message.answer("Выберите цвет кнопки через предложенные варианты ниже.", reply_markup=button_color_keyboard())
 
 
 @admin_router.message(GiveawayCreation.prize_places, F.from_user.id == settings.ADMIN_ID)
@@ -146,7 +185,7 @@ async def set_places(message: Message, state: FSMContext) -> None:
     await state.set_state(GiveawayCreation.starts_at)
     await message.answer(
         "Введите время начала в формате `YYYY-MM-DD HH:MM`.\n"
-        "Если указано без часового пояса, будет использован UTC."
+        "Время указывайте по МСК. Например: `2026-07-01 18:30`.",
     )
 
 
@@ -159,24 +198,27 @@ async def set_starts_at(message: Message, state: FSMContext) -> None:
         return
 
     await state.update_data(starts_at=starts_at)
-    await state.set_state(GiveawayCreation.ends_at)
-    await message.answer("Введите время завершения в том же формате `YYYY-MM-DD HH:MM`.")
+    await state.set_state(GiveawayCreation.duration)
+    await message.answer(
+        f"Теперь введите длительность розыгрыша относительно начала в формате `{RELATIVE_TIME_HINT}`.\n"
+        "Например: `2:30` или `1d 02:30`."
+    )
 
 
-@admin_router.message(GiveawayCreation.ends_at, F.from_user.id == settings.ADMIN_ID)
-async def set_ends_at(message: Message, state: FSMContext) -> None:
-    try:
-        ends_at = _parse_datetime(message.text)
-    except ValueError:
-        await message.answer("Не удалось распознать дату. Пример: `2026-07-01 21:30`.")
-        return
-
+@admin_router.message(GiveawayCreation.duration, F.from_user.id == settings.ADMIN_ID)
+async def set_duration(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
-    if ends_at <= data["starts_at"]:
-        await message.answer("Время завершения должно быть позже времени начала.")
+    starts_at = data["starts_at"]
+
+    try:
+        duration = _parse_relative_duration(message.text)
+    except ValueError:
+        await message.answer(
+            f"Не удалось распознать длительность. Используйте формат `{RELATIVE_TIME_HINT}`.",
+        )
         return
 
-    await state.update_data(ends_at=ends_at)
+    await state.update_data(duration=duration)
     preview = await state.get_data()
     await message.answer(_format_preview(preview), reply_markup=confirm_giveaway_keyboard())
 
@@ -199,6 +241,7 @@ async def confirm_creation(callback: CallbackQuery, state: FSMContext) -> None:
 
     data = await state.get_data()
     title = data["announcement_message"].splitlines()[0][:120]
+    actual_start, actual_end = _resolve_schedule(data["starts_at"], data["duration"])
 
     await ensure_user(
         callback.from_user.id,
@@ -216,8 +259,8 @@ async def confirm_creation(callback: CallbackQuery, state: FSMContext) -> None:
         announcement_message=data["announcement_message"],
         button_color=data["button_color"],
         prize_places=data["prize_places"],
-        starts_at=data["starts_at"],
-        ends_at=data["ends_at"],
+        starts_at=actual_start,
+        ends_at=actual_end,
         status=GiveawayStatus.SCHEDULED,
     )
     await state.clear()

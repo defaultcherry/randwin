@@ -29,6 +29,22 @@ def confirm_giveaway_keyboard() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
+def button_color_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    colors = [
+        ("🔵 Primary", "primary"),
+        ("🟢 Success", "success"),
+        ("🔴 Danger", "danger"),
+        ("⚪ Default", "default"),
+    ]
+
+    for label, color in colors:
+        builder.button(text=label, callback_data=f"giveaway:color:{color}")
+
+    builder.adjust(2)
+    return builder.as_markup()
+
+
 def channel_request_keyboard(request_id: int = 1) -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     builder.button(

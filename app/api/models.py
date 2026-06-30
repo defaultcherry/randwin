@@ -59,7 +59,7 @@ class Giveaway(Base):
     message_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     announcement_message: Mapped[str] = mapped_column(Text, nullable=False)
-    button_color: Mapped[str] = mapped_column(String(32), nullable=False, default="#2ea6ff")
+    button_color: Mapped[str] = mapped_column(String(32), nullable=False, default="primary")
     prize_places: Mapped[int] = mapped_column(Integer, nullable=False)
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

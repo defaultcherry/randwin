@@ -47,12 +47,10 @@ class GiveawayCreateDraft(BaseModel):
     @classmethod
     def normalize_button_color(cls, value: str) -> str:
         value = value.strip()
-        if not value.startswith("#"):
-            value = f"#{value}"
-        if len(value) != 7:
-            raise ValueError("button_color must be a hex color like #2EA6FF")
-        int(value[1:], 16)
-        return value.upper()
+        allowed = {"primary", "success", "danger", "default"}
+        if value not in allowed:
+            raise ValueError("button_color must be primary, success, danger or default")
+        return value
 
     @field_validator("ends_at")
     @classmethod

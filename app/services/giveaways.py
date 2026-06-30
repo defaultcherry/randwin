@@ -1,6 +1,7 @@
 import random
 from datetime import datetime, timezone
 from html import escape
+from zoneinfo import ZoneInfo
 
 from aiogram import Bot
 from aiogram.types import InlineKeyboardMarkup, WebAppInfo
@@ -11,6 +12,8 @@ from sqlalchemy.orm import selectinload
 from app.api.models import Giveaway, GiveawayStatus, TelegramUser
 from app.database import async_session_maker
 from app.config import settings
+
+MSK_TZ = ZoneInfo("Europe/Moscow")
 
 
 def now_utc() -> datetime:
@@ -96,9 +99,21 @@ def build_giveaway_url(giveaway_id: int) -> str:
     return f"{settings.BASE_SITE.rstrip('/')}/giveaways/{giveaway_id}"
 
 
-def build_join_keyboard(giveaway_id: int) -> InlineKeyboardMarkup:
+def resolve_button_style(style: str | None) -> str | None:
+    if style in {None, "", "default"}:
+        return None
+    if style in {"primary", "success", "danger"}:
+        return style
+    return None
+
+
+def build_join_keyboard(giveaway_id: int, button_style: str | None = None) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.button(text="Участвовать", web_app=WebAppInfo(url=build_giveaway_url(giveaway_id)))
+    builder.button(
+        text="Участвовать",
+        web_app=WebAppInfo(url=build_giveaway_url(giveaway_id)),
+        style=resolve_button_style(button_style),
+    )
     return builder.as_markup()
 
 
@@ -141,7 +156,7 @@ async def publish_due_giveaways(bot: Bot) -> None:
                 message = await bot.send_message(
                     chat_id=giveaway.channel_id,
                     text=build_channel_post_text(giveaway),
-                    reply_markup=build_join_keyboard(giveaway.id),
+                    reply_markup=build_join_keyboard(giveaway.id, giveaway.button_color),
                 )
             except Exception:
                 continue
@@ -180,14 +195,14 @@ async def finish_due_giveaways(bot: Bot) -> None:
                     chat_id=giveaway.channel_id,
                     message_id=giveaway.message_id,
                     text=build_finished_channel_post_text(giveaway, winner_snapshots),
-                    reply_markup=build_results_keyboard(giveaway.id),
+                    reply_markup=build_results_keyboard(giveaway.id, giveaway.button_color),
                 )
             except Exception:
                 try:
                     await bot.send_message(
                         chat_id=giveaway.channel_id,
                         text=build_finished_channel_post_text(giveaway, winner_snapshots),
-                        reply_markup=build_results_keyboard(giveaway.id),
+                        reply_markup=build_results_keyboard(giveaway.id, giveaway.button_color),
                     )
                 except Exception:
                     pass
@@ -201,14 +216,18 @@ def build_channel_post_text(giveaway: Giveaway) -> str:
         f"{escape(giveaway.announcement_message)}\n\n"
         f"🏆 Призовых мест: <b>{giveaway.prize_places}</b>\n"
         f"👥 Участников: <b>{len(giveaway.participants)}</b>\n"
-        f"⏳ Завершение: <b>{normalize_datetime(giveaway.ends_at).strftime('%Y-%m-%d %H:%M UTC')}</b>\n\n"
+        f"⏳ Завершение: <b>{normalize_datetime(giveaway.ends_at).astimezone(MSK_TZ).strftime('%Y-%m-%d %H:%M MSK')}</b>\n\n"
         "Нажмите «Участвовать», чтобы открыть Mini App."
     )
 
 
-def build_results_keyboard(giveaway_id: int) -> InlineKeyboardMarkup:
+def build_results_keyboard(giveaway_id: int, button_style: str | None = None) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.button(text="Результаты", web_app=WebAppInfo(url=build_giveaway_url(giveaway_id)))
+    builder.button(
+        text="Результаты",
+        web_app=WebAppInfo(url=build_giveaway_url(giveaway_id)),
+        style=resolve_button_style(button_style),
+    )
     return builder.as_markup()
 
 
