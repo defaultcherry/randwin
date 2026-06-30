@@ -4,6 +4,34 @@ import './styles.css';
 
 const appConfig = window.__APP_CONFIG__ || {};
 const envHcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY || '';
+const hcaptchaScriptUrl = 'https://js.hcaptcha.com/1/api.js?render=explicit&hl=ru';
+
+let hcaptchaLoaderPromise = null;
+
+function loadHcaptchaScript() {
+  if (window.hcaptcha) return Promise.resolve(window.hcaptcha);
+  if (hcaptchaLoaderPromise) return hcaptchaLoaderPromise;
+
+  hcaptchaLoaderPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[data-hcaptcha-loader="1"]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve(window.hcaptcha));
+      existing.addEventListener('error', () => reject(new Error('Не удалось загрузить hCaptcha')));
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = hcaptchaScriptUrl;
+    script.async = true;
+    script.defer = true;
+    script.dataset.hcaptchaLoader = '1';
+    script.onload = () => resolve(window.hcaptcha);
+    script.onerror = () => reject(new Error('Не удалось загрузить hCaptcha'));
+    document.head.appendChild(script);
+  });
+
+  return hcaptchaLoaderPromise;
+}
 
 function getGiveawayIdFromPath() {
   const match = window.location.pathname.match(/^\/giveaways\/(\d+)$/);
@@ -80,6 +108,8 @@ function App() {
   const [mode, setMode] = useState('join');
   const [joinState, setJoinState] = useState('idle');
   const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaReady, setCaptchaReady] = useState(false);
+  const [captchaError, setCaptchaError] = useState('');
   const [tick, setTick] = useState(Date.now());
   const captchaRef = useRef(null);
   const captchaWidgetId = useRef(null);
@@ -119,15 +149,31 @@ function App() {
 
   useEffect(() => {
     let alive = true;
+    if (!giveawayId) return undefined;
+
+    setCaptchaReady(false);
+    setCaptchaError('');
+    loadHcaptchaScript()
+      .then(() => {
+        if (alive) setCaptchaReady(true);
+      })
+      .catch((err) => {
+        if (alive) setCaptchaError(err.message || 'Не удалось загрузить hCaptcha');
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [giveawayId]);
+
+  useEffect(() => {
+    let alive = true;
     const tryRender = () => {
       if (!alive) return;
-      if (!captchaRef.current || !(appConfig.hcaptchaSiteKey || envHcaptchaSiteKey)) return;
-      if (!window.hcaptcha) {
-        window.setTimeout(tryRender, 120);
-        return;
-      }
+      if (!captchaReady || !captchaRef.current || !(appConfig.hcaptchaSiteKey || envHcaptchaSiteKey)) return;
+      if (!window.hcaptcha) return;
       if (captchaWidgetId.current !== null) return;
-        captchaWidgetId.current = window.hcaptcha.render(captchaRef.current, {
+      captchaWidgetId.current = window.hcaptcha.render(captchaRef.current, {
         sitekey: appConfig.hcaptchaSiteKey || envHcaptchaSiteKey,
         callback: setCaptchaToken,
         'expired-callback': () => setCaptchaToken(''),
@@ -143,7 +189,7 @@ function App() {
       captchaWidgetId.current = null;
       setCaptchaToken('');
     };
-  }, [data, mode]);
+  }, [data, mode, captchaReady]);
 
   async function handleJoin() {
     if (!captchaToken) {
@@ -279,6 +325,8 @@ function JoinCard({ giveaway, joinState, captchaRef, captchaToken, onJoin, onClo
       <div className={active ? 'status status--active' : 'status'}>{active ? 'Подтвердите участие' : 'Ожидание старта'}</div>
       <div className="message">{active ? 'Пройдите hCaptcha и подтвердите подписку на канал.' : 'Розыгрыш ещё не начался.'}</div>
       {active ? <div ref={captchaRef} /> : null}
+      {captchaError ? <div className="error">{captchaError}</div> : null}
+      {active && !captchaReady && !captchaError ? <div className="subtle">Загружаю hCaptcha...</div> : null}
       {error ? <div className="error">{error}</div> : null}
       <div className="actions">
         <button className="button button--accent button--wide" style={{ background: buttonColor }} disabled={!active || !captchaToken || joinState === 'loading'} onClick={onJoin}>{joinState === 'loading' ? 'Проверяем...' : 'Участвовать'}</button>
