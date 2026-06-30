@@ -15,15 +15,19 @@ from app.config import settings
 from app.database import engine
 from app.pages.router import router as router_pages
 from app.api.router import router as router_api
-from app.services.giveaways import finish_due_giveaways, publish_due_giveaways
+from app.services.giveaways import finish_due_giveaways, publish_due_giveaways, refresh_active_giveaways
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", stream=sys.stdout)
 
 
 async def giveaway_worker() -> None:
+    refresh_tick = 0
     while True:
         try:
             await publish_due_giveaways(bot)
+            refresh_tick += 1
+            if refresh_tick % 4 == 0:
+                await refresh_active_giveaways(bot)
             await finish_due_giveaways(bot)
         except Exception:
             logging.exception("Giveaway worker failed")

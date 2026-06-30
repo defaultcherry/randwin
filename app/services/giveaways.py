@@ -212,6 +212,53 @@ async def publish_due_giveaways(bot: Bot) -> None:
         await session.commit()
 
 
+async def refresh_active_giveaways(bot: Bot) -> None:
+    current_time = to_db_utc(now_utc())
+    bot_username = (await bot.get_me()).username
+    async with async_session_maker() as session:
+        query = (
+            select(Giveaway)
+            .options(selectinload(Giveaway.participants), selectinload(Giveaway.creator))
+            .where(Giveaway.status == GiveawayStatus.ACTIVE, Giveaway.message_id.isnot(None), Giveaway.ends_at > current_time)
+            .order_by(Giveaway.starts_at.asc())
+        )
+        result = await session.execute(query)
+        giveaways = result.scalars().all()
+
+        for giveaway in giveaways:
+            try:
+                await bot.edit_message_text(
+                    chat_id=giveaway.channel_id,
+                    message_id=giveaway.message_id,
+                    text=build_channel_post_text(giveaway),
+                    reply_markup=build_join_keyboard(
+                        giveaway.id,
+                        giveaway.button_color,
+                        prefer_web_app=True,
+                        launch_url=build_tg_launch_url(bot_username, giveaway.id),
+                    ),
+                )
+            except TelegramBadRequest:
+                try:
+                    await bot.edit_message_text(
+                        chat_id=giveaway.channel_id,
+                        message_id=giveaway.message_id,
+                        text=build_channel_post_text(giveaway),
+                        reply_markup=build_join_keyboard(
+                            giveaway.id,
+                            giveaway.button_color,
+                            prefer_web_app=False,
+                            launch_url=build_tg_launch_url(bot_username, giveaway.id),
+                        ),
+                    )
+                except Exception:
+                    logging.exception("Failed to refresh active giveaway %s", giveaway.id)
+            except Exception:
+                logging.exception("Failed to refresh active giveaway %s", giveaway.id)
+
+        await session.commit()
+
+
 async def finish_due_giveaways(bot: Bot) -> None:
     current_time = to_db_utc(now_utc())
     bot_username = (await bot.get_me()).username
@@ -350,6 +397,43 @@ async def join_giveaway(*, giveaway_id: int, telegram_user_id: int) -> tuple[str
         await session.commit()
         await session.refresh(giveaway)
         return "joined", giveaway
+
+
+async def refresh_giveaway_message(bot: Bot, giveaway_id: int) -> None:
+    giveaway = await get_giveaway(giveaway_id)
+    if giveaway is None or giveaway.status != GiveawayStatus.ACTIVE or giveaway.message_id is None:
+        return
+
+    bot_username = (await bot.get_me()).username
+    try:
+        await bot.edit_message_text(
+            chat_id=giveaway.channel_id,
+            message_id=giveaway.message_id,
+            text=build_channel_post_text(giveaway),
+            reply_markup=build_join_keyboard(
+                giveaway.id,
+                giveaway.button_color,
+                prefer_web_app=True,
+                launch_url=build_tg_launch_url(bot_username, giveaway.id),
+            ),
+        )
+    except TelegramBadRequest:
+        try:
+            await bot.edit_message_text(
+                chat_id=giveaway.channel_id,
+                message_id=giveaway.message_id,
+                text=build_channel_post_text(giveaway),
+                reply_markup=build_join_keyboard(
+                    giveaway.id,
+                    giveaway.button_color,
+                    prefer_web_app=False,
+                    launch_url=build_tg_launch_url(bot_username, giveaway.id),
+                ),
+            )
+        except Exception:
+            logging.exception("Failed to refresh giveaway %s after join", giveaway.id)
+    except Exception:
+        logging.exception("Failed to refresh giveaway %s after join", giveaway.id)
 
 
 async def get_view_state(giveaway_id: int, telegram_id: int | None) -> dict:

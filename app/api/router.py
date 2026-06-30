@@ -5,7 +5,7 @@ from urllib.request import urlopen
 from app.api.models import GiveawayStatus
 from app.api.schemas import GiveawayPublicResponse, GiveawayViewResponse, JoinGiveawayPayload
 from app.config import settings
-from app.services.giveaways import get_giveaway, get_view_state, join_giveaway, serialize_giveaway
+from app.services.giveaways import get_giveaway, get_view_state, join_giveaway, refresh_giveaway_message, serialize_giveaway
 from app.services.giveaways import ensure_user
 from app.services.telegram import TelegramDataError, verify_hcaptcha, verify_telegram_init_data
 from app.bot.create_bot import bot
@@ -71,13 +71,14 @@ async def participate(
     user = await ensure_user(identity.telegram_id, identity.first_name, identity.first_name, identity.username)
 
     if giveaway.status == GiveawayStatus.FINISHED:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Giveaway already finished")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Розыгрыш уже завершён")
 
     chat_member = await bot.get_chat_member(giveaway.channel_id, identity.telegram_id)
     if chat_member.status not in {"member", "administrator", "creator"}:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You must be subscribed to the channel")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы должны быть подписаны на канал")
 
     state, updated = await join_giveaway(giveaway_id=giveaway_id, telegram_user_id=user.telegram_id)
+    await refresh_giveaway_message(bot, giveaway_id)
     return {
         "state": state,
         "giveaway": serialize_giveaway(updated),
