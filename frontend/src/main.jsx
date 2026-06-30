@@ -316,6 +316,4 @@ function ResultsCard({ giveaway, winners, countdown, onBack }) {
   );
 }
 
-if (React && ReactDOM) {
-  createRoot(document.getElementById('root')).render(<App />);
-}
+createRoot(document.getElementById('root')).render(<App />);
