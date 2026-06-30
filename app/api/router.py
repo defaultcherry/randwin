@@ -58,18 +58,17 @@ async def participate(
     except TelegramDataError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
 
+    giveaway = await get_giveaway(giveaway_id)
+    if giveaway is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Giveaway not found")
+
     if giveaway.require_captcha:
         if not payload.hcaptcha_token:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Captcha token is required")
         if not await verify_hcaptcha(payload.hcaptcha_token, request.client.host if request.client else None):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Captcha verification failed")
 
-    
     user = await ensure_user(identity.telegram_id, identity.first_name, identity.first_name, identity.username)
-
-    giveaway = await get_giveaway(giveaway_id)
-    if giveaway is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Giveaway not found")
 
     if giveaway.status == GiveawayStatus.FINISHED:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Giveaway already finished")
