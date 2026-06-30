@@ -1,9 +1,11 @@
+import logging
 import random
 from datetime import datetime, timezone
 from html import escape
 from zoneinfo import ZoneInfo
 
 from aiogram import Bot
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import InlineKeyboardMarkup, WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy import select
@@ -111,13 +113,17 @@ def resolve_button_style(style: str | None) -> str | None:
     return None
 
 
-def build_join_keyboard(giveaway_id: int, button_style: str | None = None) -> InlineKeyboardMarkup:
+def build_join_keyboard(giveaway_id: int, button_style: str | None = None, *, prefer_web_app: bool = True) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.button(
-        text="Участвовать",
-        web_app=WebAppInfo(url=build_giveaway_url(giveaway_id)),
-        style=resolve_button_style(button_style),
-    )
+    kwargs = {
+        "text": "Участвовать",
+        "style": resolve_button_style(button_style),
+    }
+    if prefer_web_app:
+        kwargs["web_app"] = WebAppInfo(url=build_giveaway_url(giveaway_id))
+    else:
+        kwargs["url"] = build_giveaway_url(giveaway_id)
+    builder.button(**kwargs)
     return builder.as_markup()
 
 
@@ -160,9 +166,21 @@ async def publish_due_giveaways(bot: Bot) -> None:
                 message = await bot.send_message(
                     chat_id=giveaway.channel_id,
                     text=build_channel_post_text(giveaway),
-                    reply_markup=build_join_keyboard(giveaway.id, giveaway.button_color),
+                    reply_markup=build_join_keyboard(giveaway.id, giveaway.button_color, prefer_web_app=True),
                 )
+            except TelegramBadRequest:
+                logging.warning("Channel web_app button failed for giveaway %s, retrying with URL button", giveaway.id)
+                try:
+                    message = await bot.send_message(
+                        chat_id=giveaway.channel_id,
+                        text=build_channel_post_text(giveaway),
+                        reply_markup=build_join_keyboard(giveaway.id, giveaway.button_color, prefer_web_app=False),
+                    )
+                except Exception:
+                    logging.exception("Failed to publish giveaway %s", giveaway.id)
+                    continue
             except Exception:
+                logging.exception("Failed to publish giveaway %s", giveaway.id)
                 continue
 
             giveaway.status = GiveawayStatus.ACTIVE
@@ -199,17 +217,27 @@ async def finish_due_giveaways(bot: Bot) -> None:
                     chat_id=giveaway.channel_id,
                     message_id=giveaway.message_id,
                     text=build_finished_channel_post_text(giveaway, winner_snapshots),
-                    reply_markup=build_results_keyboard(giveaway.id, giveaway.button_color),
+                    reply_markup=build_results_keyboard(giveaway.id, giveaway.button_color, prefer_web_app=True),
                 )
-            except Exception:
+            except TelegramBadRequest:
                 try:
                     await bot.send_message(
                         chat_id=giveaway.channel_id,
                         text=build_finished_channel_post_text(giveaway, winner_snapshots),
-                        reply_markup=build_results_keyboard(giveaway.id, giveaway.button_color),
+                        reply_markup=build_results_keyboard(giveaway.id, giveaway.button_color, prefer_web_app=False),
                     )
                 except Exception:
-                    pass
+                    logging.exception("Failed to send finished giveaway fallback for %s", giveaway.id)
+            except Exception:
+                logging.exception("Failed to finish giveaway %s", giveaway.id)
+                try:
+                    await bot.send_message(
+                        chat_id=giveaway.channel_id,
+                        text=build_finished_channel_post_text(giveaway, winner_snapshots),
+                        reply_markup=build_results_keyboard(giveaway.id, giveaway.button_color, prefer_web_app=False),
+                    )
+                except Exception:
+                    logging.exception("Failed to send finished giveaway fallback for %s", giveaway.id)
 
         await session.commit()
 
@@ -225,13 +253,17 @@ def build_channel_post_text(giveaway: Giveaway) -> str:
     )
 
 
-def build_results_keyboard(giveaway_id: int, button_style: str | None = None) -> InlineKeyboardMarkup:
+def build_results_keyboard(giveaway_id: int, button_style: str | None = None, *, prefer_web_app: bool = True) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.button(
-        text="Результаты",
-        web_app=WebAppInfo(url=build_giveaway_url(giveaway_id)),
-        style=resolve_button_style(button_style),
-    )
+    kwargs = {
+        "text": "Результаты",
+        "style": resolve_button_style(button_style),
+    }
+    if prefer_web_app:
+        kwargs["web_app"] = WebAppInfo(url=build_giveaway_url(giveaway_id))
+    else:
+        kwargs["url"] = build_giveaway_url(giveaway_id)
+    builder.button(**kwargs)
     return builder.as_markup()
 
 

@@ -13,7 +13,7 @@ from app.api.models import GiveawayStatus
 from app.bot.create_bot import bot
 from app.bot.keyboards.kbs import button_color_keyboard, channel_request_keyboard, confirm_giveaway_keyboard, main_keyboard
 from app.config import settings
-from app.services.giveaways import ensure_user, normalize_datetime, now_utc, to_db_utc
+from app.services.giveaways import ensure_user, now_utc, normalize_datetime, publish_due_giveaways, to_db_utc
 
 admin_router = Router()
 MSK_TZ = ZoneInfo("Europe/Moscow")
@@ -265,6 +265,8 @@ async def confirm_creation(callback: CallbackQuery, state: FSMContext) -> None:
         ends_at=actual_end_db,
         status=GiveawayStatus.SCHEDULED,
     )
+    if actual_start_db <= to_db_utc(now_utc()):
+        await publish_due_giveaways(bot)
     await state.clear()
     await callback.message.edit_text(
         "Розыгрыш сохранён и будет опубликован автоматически в указанное время.",
