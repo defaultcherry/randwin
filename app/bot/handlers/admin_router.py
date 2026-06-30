@@ -11,7 +11,7 @@ from aiogram.types import CallbackQuery, Message
 from app.api.dao import GiveawayDAO
 from app.api.models import GiveawayStatus
 from app.bot.create_bot import bot
-from app.bot.keyboards.kbs import button_color_keyboard, channel_request_keyboard, confirm_giveaway_keyboard, main_keyboard
+from app.bot.keyboards.kbs import button_color_keyboard, captcha_requirement_keyboard, channel_request_keyboard, confirm_giveaway_keyboard, main_keyboard
 from app.config import settings
 from app.services.giveaways import ensure_user, now_utc, normalize_datetime, publish_due_giveaways, to_db_utc
 
@@ -26,6 +26,7 @@ class GiveawayCreation(StatesGroup):
     prize_places = State()
     starts_at = State()
     duration = State()
+    captcha_requirement = State()
 
 
 RELATIVE_TIME_HINT = "2:30 или 1d 02:30"
@@ -80,6 +81,7 @@ def _format_preview(data: dict) -> str:
         f"<b>Сообщение:</b> {data['announcement_message']}\n"
         f"<b>Цвет кнопки:</b> {data['button_color']}\n"
         f"<b>Призовых мест:</b> {data['prize_places']}\n"
+        f"<b>hCaptcha:</b> {'включена' if data['require_captcha'] else 'отключена'}\n"
         f"<b>Начало:</b> {_format_msk(data['starts_at'])}\n"
         f"<b>Длительность:</b> {data['duration']}\n"
         "<b>Завершение:</b> будет рассчитано при подтверждении"
@@ -160,15 +162,32 @@ async def set_message(message: Message, state: FSMContext) -> None:
 async def set_color(callback: CallbackQuery, state: FSMContext) -> None:
     color = callback.data.removeprefix("giveaway:color:")
     await state.update_data(button_color=color)
-    await state.set_state(GiveawayCreation.prize_places)
+    await state.set_state(GiveawayCreation.captcha_requirement)
     await callback.message.edit_text(f"Цвет кнопки выбран: <code>{color}</code>")
-    await callback.message.answer("Сколько призовых мест будет в розыгрыше?")
+    await callback.message.answer("Требовать прохождение hCaptcha?", reply_markup=captcha_requirement_keyboard())
     await callback.answer()
 
 
 @admin_router.message(GiveawayCreation.button_color, F.from_user.id == settings.ADMIN_ID)
 async def set_color_fallback(message: Message) -> None:
     await message.answer("Выберите цвет кнопки через предложенные варианты ниже.", reply_markup=button_color_keyboard())
+
+
+@admin_router.callback_query(GiveawayCreation.captcha_requirement, F.data.startswith("giveaway:captcha:"))
+async def set_captcha_requirement(callback: CallbackQuery, state: FSMContext) -> None:
+    require_captcha = callback.data.endswith(":yes")
+    await state.update_data(require_captcha=require_captcha)
+    await state.set_state(GiveawayCreation.prize_places)
+    await callback.message.edit_text(
+        f"hCaptcha {'включена' if require_captcha else 'отключена'}."
+    )
+    await callback.message.answer("Сколько призовых мест будет в розыгрыше?")
+    await callback.answer()
+
+
+@admin_router.message(GiveawayCreation.captcha_requirement, F.from_user.id == settings.ADMIN_ID)
+async def set_captcha_requirement_fallback(message: Message) -> None:
+    await message.answer("Выберите вариант кнопками ниже.", reply_markup=captcha_requirement_keyboard())
 
 
 @admin_router.message(GiveawayCreation.prize_places, F.from_user.id == settings.ADMIN_ID)
@@ -260,6 +279,7 @@ async def confirm_creation(callback: CallbackQuery, state: FSMContext) -> None:
         title=title,
         announcement_message=data["announcement_message"],
         button_color=data["button_color"],
+        require_captcha=data.get("require_captcha", True),
         prize_places=data["prize_places"],
         starts_at=actual_start_db,
         ends_at=actual_end_db,

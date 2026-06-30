@@ -45,6 +45,14 @@ def button_color_keyboard() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
+def captcha_requirement_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✅ Да, нужна", callback_data="giveaway:captcha:yes")
+    builder.button(text="❎ Нет, без капчи", callback_data="giveaway:captcha:no")
+    builder.adjust(2)
+    return builder.as_markup()
+
+
 def channel_request_keyboard(request_id: int = 1) -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     builder.button(

@@ -38,6 +38,10 @@ async def lifespan(app: FastAPI):
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        columns = await conn.exec_driver_sql("PRAGMA table_info(tg_giveaways)")
+        column_names = {row[1] for row in columns.fetchall()}
+        if "require_captcha" not in column_names:
+            await conn.exec_driver_sql("ALTER TABLE tg_giveaways ADD COLUMN require_captcha BOOLEAN NOT NULL DEFAULT 1")
 
     webhook_url = settings.get_webhook_url()
     await bot.set_webhook(

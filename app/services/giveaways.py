@@ -146,6 +146,7 @@ def serialize_giveaway(giveaway: Giveaway) -> dict:
         "title": giveaway.title,
         "announcement_message": giveaway.announcement_message,
         "button_color": giveaway.button_color,
+        "require_captcha": giveaway.require_captcha,
         "prize_places": giveaway.prize_places,
         "channel_id": giveaway.channel_id,
         "channel_title": giveaway.channel_title,

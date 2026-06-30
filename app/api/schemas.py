@@ -8,7 +8,7 @@ class TelegramWebAppPayload(BaseModel):
 
 
 class JoinGiveawayPayload(TelegramWebAppPayload):
-    hcaptcha_token: str = Field(min_length=1)
+    hcaptcha_token: str | None = None
 
 
 class GiveawayPublicResponse(BaseModel):
@@ -16,6 +16,7 @@ class GiveawayPublicResponse(BaseModel):
     title: str
     announcement_message: str
     button_color: str
+    require_captcha: bool
     prize_places: int
     channel_id: str
     channel_title: str | None = None
@@ -39,6 +40,7 @@ class GiveawayViewResponse(BaseModel):
 class GiveawayCreateDraft(BaseModel):
     announcement_message: str = Field(min_length=1, max_length=4000)
     button_color: str = Field(min_length=4, max_length=32)
+    require_captcha: bool = True
     prize_places: int = Field(ge=1, le=50)
     starts_at: datetime
     ends_at: datetime

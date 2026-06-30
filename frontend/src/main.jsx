@@ -149,7 +149,8 @@ function App() {
 
   useEffect(() => {
     let alive = true;
-    if (!giveawayId) return undefined;
+    if (!giveawayId || !data?.giveaway) return undefined;
+    if (!data.giveaway.require_captcha) return undefined;
 
     setCaptchaReady(false);
     setCaptchaError('');
@@ -164,12 +165,13 @@ function App() {
     return () => {
       alive = false;
     };
-  }, [giveawayId]);
+  }, [giveawayId, data?.giveaway?.require_captcha]);
 
   useEffect(() => {
     let alive = true;
     const tryRender = () => {
       if (!alive) return;
+      if (!data?.giveaway || !data.giveaway.require_captcha) return;
       if (!captchaReady || !captchaRef.current || !(appConfig.hcaptchaSiteKey || envHcaptchaSiteKey)) return;
       if (!window.hcaptcha) return;
       if (captchaWidgetId.current !== null) return;
@@ -192,7 +194,7 @@ function App() {
   }, [data, mode, captchaReady]);
 
   async function handleJoin() {
-    if (!captchaToken) {
+    if (giveaway.require_captcha && !captchaToken) {
       setError('Подтвердите капчу hCaptcha');
       return;
     }
@@ -323,13 +325,17 @@ function JoinCard({ giveaway, joinState, captchaRef, captchaToken, captchaReady,
   return (
     <section className="card stack">
       <div className={active ? 'status status--active' : 'status'}>{active ? 'Подтвердите участие' : 'Ожидание старта'}</div>
-      <div className="message">{active ? 'Пройдите hCaptcha и подтвердите подписку на канал.' : 'Розыгрыш ещё не начался.'}</div>
-      {active ? <div ref={captchaRef} /> : null}
+      <div className="message">
+        {active
+          ? (giveaway.require_captcha ? 'Пройдите hCaptcha и подтвердите подписку на канал.' : 'Подтвердите подписку на канал и участвуйте без hCaptcha.')
+          : 'Розыгрыш ещё не начался.'}
+      </div>
+      {active && giveaway.require_captcha ? <div ref={captchaRef} /> : null}
       {captchaError ? <div className="error">{captchaError}</div> : null}
-      {active && !captchaReady && !captchaError ? <div className="subtle">Загружаю hCaptcha...</div> : null}
+      {active && giveaway.require_captcha && !captchaReady && !captchaError ? <div className="subtle">Загружаю hCaptcha...</div> : null}
       {error ? <div className="error">{error}</div> : null}
       <div className="actions">
-        <button className="button button--accent button--wide" style={{ background: buttonColor }} disabled={!active || !captchaToken || joinState === 'loading'} onClick={onJoin}>{joinState === 'loading' ? 'Проверяем...' : 'Участвовать'}</button>
+        <button className="button button--accent button--wide" style={{ background: buttonColor }} disabled={!active || (giveaway.require_captcha && !captchaToken) || joinState === 'loading'} onClick={onJoin}>{joinState === 'loading' ? 'Проверяем...' : 'Участвовать'}</button>
         <button className="button button--ghost button--wide" onClick={onClose}>Закрыть мини-апп</button>
       </div>
     </section>
