@@ -283,14 +283,14 @@ function App() {
         </section>
 
         {mode === 'join'
-          ? <JoinCard giveaway={giveaway} joinState={joinState} captchaRef={captchaRef} captchaToken={captchaToken} onJoin={handleJoin} onClose={closeApp} onOpenDetails={() => setMode('details')} viewerState={data.viewer_state} error={error} buttonColor={giveaway.button_color} />
+          ? <JoinCard giveaway={giveaway} joinState={joinState} captchaRef={captchaRef} captchaToken={captchaToken} captchaReady={captchaReady} captchaError={captchaError} onJoin={handleJoin} onClose={closeApp} onOpenDetails={() => setMode('details')} viewerState={data.viewer_state} error={error} buttonColor={giveaway.button_color} />
           : <ResultsCard giveaway={giveaway} winners={winners} countdown={countdown} onBack={() => setMode('join')} />}
       </div>
     </div>
   );
 }
 
-function JoinCard({ giveaway, joinState, captchaRef, captchaToken, onJoin, onClose, onOpenDetails, viewerState, error, buttonColor }) {
+function JoinCard({ giveaway, joinState, captchaRef, captchaToken, captchaReady, captchaError, onJoin, onClose, onOpenDetails, viewerState, error, buttonColor }) {
   const alreadyJoined = viewerState === 'already_joined';
   const active = giveaway.status === 'active';
 
