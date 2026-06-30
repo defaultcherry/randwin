@@ -13,7 +13,7 @@ from app.api.models import GiveawayStatus
 from app.bot.create_bot import bot
 from app.bot.keyboards.kbs import button_color_keyboard, channel_request_keyboard, confirm_giveaway_keyboard, main_keyboard
 from app.config import settings
-from app.services.giveaways import ensure_user, normalize_datetime, now_utc
+from app.services.giveaways import ensure_user, normalize_datetime, now_utc, to_db_utc
 
 admin_router = Router()
 MSK_TZ = ZoneInfo("Europe/Moscow")
@@ -242,6 +242,8 @@ async def confirm_creation(callback: CallbackQuery, state: FSMContext) -> None:
     data = await state.get_data()
     title = data["announcement_message"].splitlines()[0][:120]
     actual_start, actual_end = _resolve_schedule(data["starts_at"], data["duration"])
+    actual_start_db = to_db_utc(actual_start)
+    actual_end_db = to_db_utc(actual_end)
 
     await ensure_user(
         callback.from_user.id,
@@ -259,8 +261,8 @@ async def confirm_creation(callback: CallbackQuery, state: FSMContext) -> None:
         announcement_message=data["announcement_message"],
         button_color=data["button_color"],
         prize_places=data["prize_places"],
-        starts_at=actual_start,
-        ends_at=actual_end,
+        starts_at=actual_start_db,
+        ends_at=actual_end_db,
         status=GiveawayStatus.SCHEDULED,
     )
     await state.clear()

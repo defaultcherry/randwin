@@ -26,6 +26,10 @@ def normalize_datetime(value: datetime) -> datetime:
     return value.astimezone(timezone.utc)
 
 
+def to_db_utc(value: datetime) -> datetime:
+    return normalize_datetime(value).replace(tzinfo=None)
+
+
 async def ensure_user(
     telegram_id: int,
     first_name: str,
@@ -140,7 +144,7 @@ def serialize_giveaway(giveaway: Giveaway) -> dict:
 
 
 async def publish_due_giveaways(bot: Bot) -> None:
-    current_time = now_utc()
+    current_time = to_db_utc(now_utc())
     async with async_session_maker() as session:
         query = (
             select(Giveaway)
@@ -169,7 +173,7 @@ async def publish_due_giveaways(bot: Bot) -> None:
 
 
 async def finish_due_giveaways(bot: Bot) -> None:
-    current_time = now_utc()
+    current_time = to_db_utc(now_utc())
     async with async_session_maker() as session:
         query = (
             select(Giveaway)
