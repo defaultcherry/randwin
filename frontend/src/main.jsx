@@ -8,6 +8,9 @@ const envHcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY || '';
 function getGiveawayIdFromPath() {
   const match = window.location.pathname.match(/^\/giveaways\/(\d+)$/);
   if (match) return match[1];
+  const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param || '';
+  const startMatch = String(startParam).match(/^giveaway_(\d+)$/);
+  if (startMatch) return startMatch[1];
   if (appConfig.giveawayId) return String(appConfig.giveawayId);
   return '';
 }
