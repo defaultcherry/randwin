@@ -57,7 +57,7 @@ function formatDuration(targetIso) {
   return days > 0 ? `${days}d ${pad(hours)}:${pad(minutes)}:${pad(seconds)}` : `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
 }
 
-function themeTelegram() {
+function applyTelegramTheme() {
   const tg = window.Telegram?.WebApp;
   if (!tg) return;
 
@@ -123,7 +123,23 @@ function App() {
   const captchaRef = useRef(null);
   const captchaWidgetId = useRef(null);
 
-  useEffect(() => { themeTelegram(); }, []);
+  useEffect(() => {
+    const tg = window.Telegram?.WebApp;
+    applyTelegramTheme();
+
+    if (!tg?.onEvent) return undefined;
+
+    const handleThemeChanged = () => {
+      applyTelegramTheme();
+    };
+
+    tg.onEvent('themeChanged', handleThemeChanged);
+    return () => {
+      if (tg.offEvent) {
+        tg.offEvent('themeChanged', handleThemeChanged);
+      }
+    };
+  }, []);
   useEffect(() => {
     const interval = window.setInterval(() => setTick(Date.now()), 1000);
     return () => window.clearInterval(interval);
