@@ -292,7 +292,7 @@ function App() {
         <section className="hero">
           <div className="hero__eyebrow">RandWin</div>
           <h1 className="hero__title">{giveaway.title}</h1>
-          <p className="hero__text">{giveaway.announcement_message}</p>
+          <p className="hero__text">Данный розыгрыш проводится среди подписчиков канала.</p>
         </section>
 
         <section className="card stack">
@@ -326,10 +326,6 @@ function JoinCard({ giveaway, joinState, captchaRef, captchaToken, captchaReady,
       <section className="card stack">
         <div className="status status--finished">Розыгрыш завершён</div>
         <div className="message">Итоги подведены. Откройте результаты розыгрыша.</div>
-        <div className="actions">
-          <button className="button button--ghost" onClick={onClose}>Закрыть</button>
-          <button className="button button--accent" style={{ background: buttonColor }} onClick={onOpenDetails}>Результаты</button>
-        </div>
       </section>
     );
   }
@@ -339,10 +335,6 @@ function JoinCard({ giveaway, joinState, captchaRef, captchaToken, captchaReady,
       <section className="card stack">
         <div className="status status--active">Вы уже участвуете</div>
         <div className="message">Ваше участие уже подтверждено. Можно закрыть мини-апп или открыть страницу розыгрыша.</div>
-        <div className="actions">
-          <button className="button button--ghost" onClick={onClose}>Закрыть мини-апп</button>
-          <button className="button button--accent" style={{ background: buttonColor }} onClick={onOpenDetails}>Перейти к розыгрышу</button>
-        </div>
       </section>
     );
   }
@@ -359,10 +351,6 @@ function JoinCard({ giveaway, joinState, captchaRef, captchaToken, captchaReady,
       {captchaError ? <div className="error">{captchaError}</div> : null}
       {active && giveaway.require_captcha && !captchaReady && !captchaError ? <div className="subtle">Загружаю hCaptcha...</div> : null}
       {error ? <div className="error">{error}</div> : null}
-      <div className="actions">
-        <button className="button button--accent button--wide" style={{ background: buttonColor }} disabled={!active || (giveaway.require_captcha && !captchaToken) || joinState === 'loading'} onClick={onJoin}>{joinState === 'loading' ? 'Проверяем...' : 'Участвовать'}</button>
-        <button className="button button--ghost button--wide" onClick={onClose}>Закрыть мини-апп</button>
-      </div>
     </section>
   );
 }
@@ -380,17 +368,13 @@ function ResultsCard({ giveaway, winners, countdown, onBack }) {
             <div key={`${item.telegram_id}-${index}`} className="winner-item">
               <Avatar item={item} />
               <div className="winner-item__body">
-                <a className="winner-item__name" href={`tg://user?id=${item.telegram_id}`}>{item.full_name}</a>
+                <div className="winner-item__name">{item.full_name}</div>
                 <div className="subtle">{item.username ? `@${item.username}` : 'Пользователь Telegram'}</div>
               </div>
             </div>
           ))}
         </div>
       ) : finished ? <div className="subtle">Победители не определены.</div> : null}
-      <div className="actions">
-        <button className="button button--ghost" onClick={onBack}>Назад</button>
-        <button className="button button--danger" onClick={() => window.Telegram?.WebApp?.close()}>Закрыть</button>
-      </div>
     </section>
   );
 }
