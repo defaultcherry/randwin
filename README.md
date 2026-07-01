@@ -1,4 +1,6 @@
-# Telegram Giveaway Mini App
+# RandWin
+
+Проект бота для розыгрышей с использованием Telegram Web Apps, реализованный в рамках ознакомительной учебной практики.
 
 Кратко:
 - `app/` - FastAPI backend + Telegram bot.
@@ -16,44 +18,35 @@
 - Экран результатов с именами, аватарами или заглушками.
 
 ## Цвет кнопки и время
-- Цвет кнопки выбирается только из Telegram-style вариантов: `primary`, `success`, `danger` или `default`.
+- Цвет кнопки выбирается из вариантов: `primary` (синий), `success` (зелёный), `danger` (красный) или `default` (цвет темы).
 - Дата и время старта вводятся в МСК, внутри системы сохраняются в UTC.
 - Время завершения всегда задаётся как длительность относительно старта.
 - Если старт уже в прошлом, бот предупреждает об отправке поста сразу.
 - hCaptcha можно включать и выключать при создании розыгрыша.
 
 ## Переменные окружения
-Скопируйте `.env.example` и заполните:
-- `BOT_TOKEN`
-- `BASE_SITE`
-- `HCAPTCHA_SITE_KEY`
-- `HCAPTCHA_SECRET`
+- `BOT_TOKEN` - токен Telegram-бота.
+- `BASE_SITE` - основной URL мини-приложения.
+- `HCAPTCHA_SITE_KEY` - ключ сайта от hCaptcha.
+- `HCAPTCHA_SECRET` - секрет для отправки запросов проверки решения капчи пользователем.
 
-## Запуск backend
-```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
-
-## Сборка frontend
+## Сборка frontend (делается перед запуском, но можно делать и во время работы сервера)
 ```bash
 npm install
 npm run build
 ```
 
-Сборка попадет в `app/static/dist/mini-app.js`.
-Для hCaptcha добавьте `VITE_HCAPTCHA_SITE_KEY` в корневой `.env`.
+## Запуск
+```bash
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app
+```
 
 ## Локальная разработка фронтенда
 ```bash
 npm run dev
 ```
 
-Vite поднимется с прокси на `http://localhost:8000` для `/api`, `/webhook` и `/static`.
-
-## Примечания
-- Бот работает с любым каналом, который администратор выберет в чате с ботом.
-- Для публикации и редактирования постов бот должен быть администратором канала.
-- Проверка данных Telegram выполняется по `initData` на backend.
+Сборка попадет в `app/static/dist/`.
