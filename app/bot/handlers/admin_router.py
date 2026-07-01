@@ -16,7 +16,6 @@ from app.bot.keyboards.kbs import button_color_keyboard, captcha_requirement_key
 from app.services.giveaways import ensure_user, now_utc, normalize_datetime, publish_due_giveaways, to_db_utc
 
 admin_router = Router()
-MSK_TZ = ZoneInfo("Europe/Moscow")
 
 
 class GiveawayCreation(StatesGroup):
@@ -29,9 +28,10 @@ class GiveawayCreation(StatesGroup):
     captcha_requirement = State()
 
 
-RELATIVE_TIME_HINT = "2:30 или 1d 02:30"
+RELATIVE_TIME_HINT = "H:MM или 1d HH:MM"
 RELATIVE_TIME_RE = re.compile(r"^(?:(?P<days>\d+)\s*(?:d|д))?\s*(?P<hours>\d{1,3}):(?P<minutes>\d{2})(?::(?P<seconds>\d{2}))?$")
 HTML_TAG_RE = re.compile(r"<[^>]+>")
+MSK_TZ = ZoneInfo("Europe/Moscow")
 
 
 def _parse_datetime(value: str) -> datetime:
@@ -215,8 +215,8 @@ async def set_places(message: Message, state: FSMContext) -> None:
     await state.update_data(prize_places=places)
     await state.set_state(GiveawayCreation.starts_at)
     await message.answer(
-        "Введите время начала в формате `YYYY-MM-DD HH:MM`.\n"
-        "Время указывайте по МСК. Например: `2026-07-01 18:30`.",
+        "Введите время начала в формате <code>YYYY-MM-DD HH:MM</code>.\n"
+        "Время указывайте по МСК. Например: <code>2026-07-01 18:30</code>.",
     )
 
 
@@ -225,14 +225,14 @@ async def set_starts_at(message: Message, state: FSMContext) -> None:
     try:
         starts_at = _parse_datetime(message.text) # type: ignore
     except ValueError:
-        await message.answer("Не удалось распознать дату. Пример: `2026-07-01 18:30`.")
+        await message.answer("Не удалось распознать дату. Пример: <code>2026-07-01 18:30</code>.")
         return
 
     await state.update_data(starts_at=starts_at)
     await state.set_state(GiveawayCreation.duration)
     await message.answer(
-        f"Теперь введите длительность розыгрыша относительно начала в формате `{RELATIVE_TIME_HINT}`.\n"
-        "Например: `2:30` или `1d 02:30`."
+        f"Теперь введите длительность розыгрыша относительно начала в формате <code>{RELATIVE_TIME_HINT}</code>.\n"
+        "Например: <code>2:30</code> или <code>1d 02:30</code>."
     )
 
 
@@ -242,7 +242,7 @@ async def set_duration(message: Message, state: FSMContext) -> None:
         duration = _parse_relative_duration(message.text) # type: ignore
     except ValueError:
         await message.answer(
-            f"Не удалось распознать длительность. Используйте формат `{RELATIVE_TIME_HINT}`.",
+            f"Не удалось распознать длительность. Используйте формат <code>{RELATIVE_TIME_HINT}</code>.",
         )
         return
 
