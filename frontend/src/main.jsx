@@ -65,15 +65,24 @@ function themeTelegram() {
   tg.expand();
 
   const theme = tg.themeParams || {};
+  const isLight = tg.colorScheme === 'light';
   const root = document.documentElement.style;
-  root.setProperty('--bg', theme.bg_color || '#0f1115');
-  root.setProperty('--panel', theme.secondary_bg_color ? `${theme.secondary_bg_color}f2` : 'rgba(18, 20, 27, 0.92)');
-  root.setProperty('--panel-2', theme.bg_color ? `${theme.bg_color}99` : 'rgba(255, 255, 255, 0.06)');
-  root.setProperty('--text', theme.text_color || '#f3f5f7');
-  root.setProperty('--muted', theme.hint_color || 'rgba(243, 245, 247, 0.7)');
+  const bg = theme.bg_color || (isLight ? '#f5f7fb' : '#0f1115');
+  const surface = theme.secondary_bg_color || (isLight ? '#ffffff' : '#171a21');
+  const surfaceSoft = isLight ? 'rgba(15, 17, 21, 0.04)' : 'rgba(255, 255, 255, 0.06)';
+  const heroSurface = isLight
+    ? 'linear-gradient(180deg, rgba(255,255,255,0.92), rgba(245,247,251,0.96))'
+    : 'linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.04))';
+  root.setProperty('--bg', bg);
+  root.setProperty('--surface', `${surface}${isLight ? 'f2' : ''}`);
+  root.setProperty('--surface-soft', surfaceSoft);
+  root.setProperty('--hero-surface', heroSurface);
+  root.setProperty('--text', theme.text_color || (isLight ? '#111827' : '#f3f5f7'));
+  root.setProperty('--muted', theme.hint_color || (isLight ? 'rgba(17, 24, 39, 0.68)' : 'rgba(243, 245, 247, 0.7)'));
   root.setProperty('--accent', theme.button_color || '#2ea6ff');
-  root.setProperty('--accent-text', theme.button_text_color || '#ffffff');
-  root.setProperty('--border', theme.hint_color ? `${theme.hint_color}22` : 'rgba(255, 255, 255, 0.08)');
+  root.setProperty('--accent-text', theme.button_text_color || (isLight ? '#111827' : '#ffffff'));
+  root.setProperty('--border', theme.hint_color ? `${theme.hint_color}22` : (isLight ? 'rgba(17, 24, 39, 0.10)' : 'rgba(255, 255, 255, 0.08)'));
+  root.setProperty('--shadow', isLight ? '0 18px 44px rgba(15, 23, 42, 0.10)' : '0 24px 80px rgba(0, 0, 0, 0.28)');
 }
 
 async function fetchJson(url, options) {
@@ -229,7 +238,7 @@ function App() {
       <div className="mini-app">
         <div className="mini-app__surface">
           <section className="hero">
-            <div className="hero__eyebrow">Telegram Mini App</div>
+            <div className="hero__eyebrow">RandWin</div>
             <h1 className="hero__title">Откройте розыгрыш из Telegram</h1>
             <p className="hero__text">Страница открывается по кнопке в сообщении канала или из чата с ботом.</p>
           </section>
@@ -265,7 +274,7 @@ function App() {
     <div className="mini-app">
       <div className="mini-app__surface">
         <section className="hero">
-          <div className="hero__eyebrow">Telegram Mini App</div>
+          <div className="hero__eyebrow">RandWin</div>
           <h1 className="hero__title">{giveaway.title}</h1>
           <p className="hero__text">{giveaway.announcement_message}</p>
         </section>

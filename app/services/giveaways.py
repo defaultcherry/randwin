@@ -182,7 +182,7 @@ async def publish_due_giveaways(bot: Bot) -> None:
                         giveaway.id,
                         giveaway.button_color,
                         prefer_web_app=True,
-                        launch_url=build_tg_launch_url(bot_username, giveaway.id),
+                        launch_url=build_tg_launch_url(bot_username, giveaway.id), # type: ignore
                     ),
                 )
             except TelegramBadRequest:
@@ -195,7 +195,7 @@ async def publish_due_giveaways(bot: Bot) -> None:
                             giveaway.id,
                             giveaway.button_color,
                             prefer_web_app=False,
-                            launch_url=build_tg_launch_url(bot_username, giveaway.id),
+                            launch_url=build_tg_launch_url(bot_username, giveaway.id), # type: ignore
                         ),
                     )
                 except Exception:
@@ -235,7 +235,7 @@ async def refresh_active_giveaways(bot: Bot) -> None:
                         giveaway.id,
                         giveaway.button_color,
                         prefer_web_app=True,
-                        launch_url=build_tg_launch_url(bot_username, giveaway.id),
+                        launch_url=build_tg_launch_url(bot_username, giveaway.id), # type: ignore
                     ),
                 )
             except TelegramBadRequest:
@@ -248,7 +248,7 @@ async def refresh_active_giveaways(bot: Bot) -> None:
                             giveaway.id,
                             giveaway.button_color,
                             prefer_web_app=False,
-                            launch_url=build_tg_launch_url(bot_username, giveaway.id),
+                            launch_url=build_tg_launch_url(bot_username, giveaway.id), # type: ignore
                         ),
                     )
                 except Exception:
@@ -291,7 +291,7 @@ async def finish_due_giveaways(bot: Bot) -> None:
                         giveaway.id,
                         giveaway.button_color,
                         prefer_web_app=True,
-                        launch_url=build_tg_launch_url(bot_username, giveaway.id),
+                        launch_url=build_tg_launch_url(bot_username, giveaway.id), # type: ignore
                     ),
                 )
             except TelegramBadRequest:
@@ -303,7 +303,7 @@ async def finish_due_giveaways(bot: Bot) -> None:
                             giveaway.id,
                             giveaway.button_color,
                             prefer_web_app=False,
-                            launch_url=build_tg_launch_url(bot_username, giveaway.id),
+                            launch_url=build_tg_launch_url(bot_username, giveaway.id), # type: ignore
                         ),
                     )
                 except Exception:
@@ -318,7 +318,7 @@ async def finish_due_giveaways(bot: Bot) -> None:
                             giveaway.id,
                             giveaway.button_color,
                             prefer_web_app=False,
-                            launch_url=build_tg_launch_url(bot_username, giveaway.id),
+                            launch_url=build_tg_launch_url(bot_username, giveaway.id), # type: ignore
                         ),
                     )
                 except Exception:
@@ -414,7 +414,7 @@ async def refresh_giveaway_message(bot: Bot, giveaway_id: int) -> None:
                 giveaway.id,
                 giveaway.button_color,
                 prefer_web_app=True,
-                launch_url=build_tg_launch_url(bot_username, giveaway.id),
+                launch_url=build_tg_launch_url(bot_username, giveaway.id), # type: ignore
             ),
         )
     except TelegramBadRequest:
@@ -427,7 +427,7 @@ async def refresh_giveaway_message(bot: Bot, giveaway_id: int) -> None:
                     giveaway.id,
                     giveaway.button_color,
                     prefer_web_app=False,
-                    launch_url=build_tg_launch_url(bot_username, giveaway.id),
+                    launch_url=build_tg_launch_url(bot_username, giveaway.id), # type: ignore
                 ),
             )
         except Exception:

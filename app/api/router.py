@@ -128,9 +128,9 @@ async def avatar_proxy(telegram_id: int):
                 yield chunk
 
     media_type = "image/jpeg"
-    if file_info.file_path.lower().endswith(".png"):
+    if file_info.file_path.lower().endswith(".png"): # type: ignore
         media_type = "image/png"
-    elif file_info.file_path.lower().endswith(".webp"):
+    elif file_info.file_path.lower().endswith(".webp"): # type: ignore
         media_type = "image/webp"
 
     return StreamingResponse(file_stream(), media_type=media_type)

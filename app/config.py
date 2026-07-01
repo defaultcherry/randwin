@@ -19,4 +19,4 @@ class Settings(BaseSettings):
         return f"{self.BASE_SITE}/webhook"
 
 
-settings = Settings()
+settings = Settings() # type: ignore

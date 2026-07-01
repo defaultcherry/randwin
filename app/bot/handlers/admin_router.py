@@ -126,7 +126,7 @@ async def set_channel(message: Message, state: FSMContext) -> None:
         await message.answer("Не удалось получить выбранный канал. Попробуйте ещё раз.")
         return
 
-    ok, title, username = await _validate_channel_access(shared.chat_id, message.from_user.id)
+    ok, title, username = await _validate_channel_access(shared.chat_id, message.from_user.id) # type: ignore
     if not ok:
         await message.answer(
             "У вас или у бота нет прав администратора в этом канале.\n"
@@ -150,7 +150,7 @@ async def set_channel(message: Message, state: FSMContext) -> None:
 
 @admin_router.message(GiveawayCreation.announcement_message, F.from_user.id == settings.ADMIN_ID)
 async def set_message(message: Message, state: FSMContext) -> None:
-    await state.update_data(announcement_message=message.text.strip())
+    await state.update_data(announcement_message=message.text.strip()) # type: ignore
     await state.set_state(GiveawayCreation.button_color)
     await message.answer(
         "Выберите цвет кнопки из доступных вариантов.",
@@ -160,11 +160,11 @@ async def set_message(message: Message, state: FSMContext) -> None:
 
 @admin_router.callback_query(GiveawayCreation.button_color, F.data.startswith("giveaway:color:"))
 async def set_color(callback: CallbackQuery, state: FSMContext) -> None:
-    color = callback.data.removeprefix("giveaway:color:")
+    color = callback.data.removeprefix("giveaway:color:") # type: ignore
     await state.update_data(button_color=color)
     await state.set_state(GiveawayCreation.captcha_requirement)
-    await callback.message.edit_text(f"Цвет кнопки выбран: <code>{color}</code>")
-    await callback.message.answer("Требовать прохождение hCaptcha?", reply_markup=captcha_requirement_keyboard())
+    await callback.message.edit_text(f"Цвет кнопки выбран: <code>{color}</code>") # type: ignore
+    await callback.message.answer("Требовать прохождение hCaptcha?", reply_markup=captcha_requirement_keyboard()) # type: ignore
     await callback.answer()
 
 
@@ -175,13 +175,13 @@ async def set_color_fallback(message: Message) -> None:
 
 @admin_router.callback_query(GiveawayCreation.captcha_requirement, F.data.startswith("giveaway:captcha:"))
 async def set_captcha_requirement(callback: CallbackQuery, state: FSMContext) -> None:
-    require_captcha = callback.data.endswith(":yes")
+    require_captcha = callback.data.endswith(":yes") # type: ignore
     await state.update_data(require_captcha=require_captcha)
     await state.set_state(GiveawayCreation.prize_places)
-    await callback.message.edit_text(
+    await callback.message.edit_text( # type: ignore
         f"hCaptcha {'включена' if require_captcha else 'отключена'}."
     )
-    await callback.message.answer("Сколько призовых мест будет в розыгрыше?")
+    await callback.message.answer("Сколько призовых мест будет в розыгрыше?") # type: ignore
     await callback.answer()
 
 
@@ -193,7 +193,7 @@ async def set_captcha_requirement_fallback(message: Message) -> None:
 @admin_router.message(GiveawayCreation.prize_places, F.from_user.id == settings.ADMIN_ID)
 async def set_places(message: Message, state: FSMContext) -> None:
     try:
-        places = int(message.text.strip())
+        places = int(message.text.strip()) # type: ignore
         if places < 1:
             raise ValueError
     except ValueError:
@@ -211,7 +211,7 @@ async def set_places(message: Message, state: FSMContext) -> None:
 @admin_router.message(GiveawayCreation.starts_at, F.from_user.id == settings.ADMIN_ID)
 async def set_starts_at(message: Message, state: FSMContext) -> None:
     try:
-        starts_at = _parse_datetime(message.text)
+        starts_at = _parse_datetime(message.text) # type: ignore
     except ValueError:
         await message.answer("Не удалось распознать дату. Пример: `2026-07-01 18:30`.")
         return
@@ -226,11 +226,8 @@ async def set_starts_at(message: Message, state: FSMContext) -> None:
 
 @admin_router.message(GiveawayCreation.duration, F.from_user.id == settings.ADMIN_ID)
 async def set_duration(message: Message, state: FSMContext) -> None:
-    data = await state.get_data()
-    starts_at = data["starts_at"]
-
     try:
-        duration = _parse_relative_duration(message.text)
+        duration = _parse_relative_duration(message.text) # type: ignore
     except ValueError:
         await message.answer(
             f"Не удалось распознать длительность. Используйте формат `{RELATIVE_TIME_HINT}`.",
@@ -248,7 +245,7 @@ async def cancel_creation(callback: CallbackQuery, state: FSMContext) -> None:
         await callback.answer("Недостаточно прав", show_alert=True)
         return
     await state.clear()
-    await callback.message.edit_text("Создание розыгрыша отменено.")
+    await callback.message.edit_text("Создание розыгрыша отменено.") # type: ignore
     await callback.answer()
 
 
@@ -288,7 +285,7 @@ async def confirm_creation(callback: CallbackQuery, state: FSMContext) -> None:
     if actual_start_db <= to_db_utc(now_utc()):
         await publish_due_giveaways(bot)
     await state.clear()
-    await callback.message.edit_text(
+    await callback.message.edit_text( # type: ignore
         "Розыгрыш сохранён и будет опубликован автоматически в указанное время.",
     )
     await callback.answer("Готово")
@@ -296,7 +293,7 @@ async def confirm_creation(callback: CallbackQuery, state: FSMContext) -> None:
 
 @admin_router.callback_query(F.data == "home:show")
 async def show_home(callback: CallbackQuery) -> None:
-    await callback.message.answer(
+    await callback.message.answer( # type: ignore
         "Возвращаюсь в главное меню.",
         reply_markup=main_keyboard(is_admin=callback.from_user.id == settings.ADMIN_ID),
     )
