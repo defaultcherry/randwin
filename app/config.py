@@ -7,7 +7,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     BOT_TOKEN: str
     BASE_SITE: str
-    ADMIN_ID: int = 0
     HCAPTCHA_SITE_KEY: str = ""
     HCAPTCHA_SECRET: str = ""
     TG_SECRET: str = b64encode(str(uuid.uuid4()).encode()).decode()

@@ -4,7 +4,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from app.config import settings
 
 
-def main_keyboard(is_admin: bool = False) -> ReplyKeyboardMarkup:
+def main_keyboard(is_admin: bool = True) -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     if is_admin:
         builder.button(text="🎁 Создать розыгрыш")

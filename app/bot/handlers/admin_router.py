@@ -7,13 +7,12 @@ from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.filters import Command
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
 
 from app.api.dao import GiveawayDAO
 from app.api.models import GiveawayStatus
 from app.bot.create_bot import bot
 from app.bot.keyboards.kbs import button_color_keyboard, captcha_requirement_keyboard, channel_request_keyboard, confirm_giveaway_keyboard, main_keyboard
-from app.config import settings
 from app.services.giveaways import ensure_user, now_utc, normalize_datetime, publish_due_giveaways, to_db_utc
 
 admin_router = Router()
@@ -120,8 +119,8 @@ async def _validate_channel_access(channel_id: int, user_id: int) -> tuple[bool,
     return True, channel.title, channel.username
 
 
-@admin_router.message(Command("giveaway"), F.from_user.id == settings.ADMIN_ID)
-@admin_router.message(F.text == "🎁 Создать розыгрыш", F.from_user.id == settings.ADMIN_ID)
+@admin_router.message(Command("giveaway"), F.chat.type == "private")
+@admin_router.message(F.text == "🎁 Создать розыгрыш", F.chat.type == "private")
 async def start_creation(message: Message, state: FSMContext) -> None:
     await state.clear()
     await state.set_state(GiveawayCreation.choose_channel)
@@ -132,7 +131,7 @@ async def start_creation(message: Message, state: FSMContext) -> None:
     )
 
 
-@admin_router.message(GiveawayCreation.choose_channel, F.chat_shared, F.from_user.id == settings.ADMIN_ID)
+@admin_router.message(GiveawayCreation.choose_channel, F.chat_shared)
 async def set_channel(message: Message, state: FSMContext) -> None:
     shared = message.chat_shared
     if shared is None or shared.request_id != 1:
@@ -157,11 +156,11 @@ async def set_channel(message: Message, state: FSMContext) -> None:
     await message.answer(
         f"Канал выбран: <b>{title or 'Канал'}</b>.\n"
         "Теперь отправьте текст сообщения розыгрыша.",
-        reply_markup=main_keyboard(is_admin=True),
+        reply_markup=ReplyKeyboardRemove(),
     )
 
 
-@admin_router.message(GiveawayCreation.announcement_message, F.from_user.id == settings.ADMIN_ID)
+@admin_router.message(GiveawayCreation.announcement_message)
 async def set_message(message: Message, state: FSMContext) -> None:
     await state.update_data(announcement_message=message.html_text.strip())
     await state.set_state(GiveawayCreation.button_color)
@@ -181,7 +180,7 @@ async def set_color(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.answer()
 
 
-@admin_router.message(GiveawayCreation.button_color, F.from_user.id == settings.ADMIN_ID)
+@admin_router.message(GiveawayCreation.button_color)
 async def set_color_fallback(message: Message) -> None:
     await message.answer("Выберите цвет кнопки через предложенные варианты ниже.", reply_markup=button_color_keyboard())
 
@@ -198,12 +197,12 @@ async def set_captcha_requirement(callback: CallbackQuery, state: FSMContext) ->
     await callback.answer()
 
 
-@admin_router.message(GiveawayCreation.captcha_requirement, F.from_user.id == settings.ADMIN_ID)
+@admin_router.message(GiveawayCreation.captcha_requirement)
 async def set_captcha_requirement_fallback(message: Message) -> None:
     await message.answer("Выберите вариант кнопками ниже.", reply_markup=captcha_requirement_keyboard())
 
 
-@admin_router.message(GiveawayCreation.prize_places, F.from_user.id == settings.ADMIN_ID)
+@admin_router.message(GiveawayCreation.prize_places)
 async def set_places(message: Message, state: FSMContext) -> None:
     try:
         places = int(message.text.strip()) # type: ignore
@@ -221,7 +220,7 @@ async def set_places(message: Message, state: FSMContext) -> None:
     )
 
 
-@admin_router.message(GiveawayCreation.starts_at, F.from_user.id == settings.ADMIN_ID)
+@admin_router.message(GiveawayCreation.starts_at)
 async def set_starts_at(message: Message, state: FSMContext) -> None:
     try:
         starts_at = _parse_datetime(message.text) # type: ignore
@@ -237,7 +236,7 @@ async def set_starts_at(message: Message, state: FSMContext) -> None:
     )
 
 
-@admin_router.message(GiveawayCreation.duration, F.from_user.id == settings.ADMIN_ID)
+@admin_router.message(GiveawayCreation.duration)
 async def set_duration(message: Message, state: FSMContext) -> None:
     try:
         duration = _parse_relative_duration(message.text) # type: ignore
@@ -254,20 +253,25 @@ async def set_duration(message: Message, state: FSMContext) -> None:
 
 @admin_router.callback_query(F.data == "giveaway:cancel")
 async def cancel_creation(callback: CallbackQuery, state: FSMContext) -> None:
-    if callback.from_user.id != settings.ADMIN_ID:
-        await callback.answer("Недостаточно прав", show_alert=True)
-        return
     await state.clear()
     await callback.message.edit_text("Создание розыгрыша отменено.") # type: ignore
+    await callback.message.answer("Возвращаюсь в главное меню.", reply_markup=main_keyboard()) # type: ignore
     await callback.answer()
+
+
+@admin_router.message(Command("cancel"))
+async def cancel_creation_command(message: Message, state: FSMContext) -> None:
+    current_state = await state.get_state()
+    if current_state is None:
+        await message.answer("Активного создания розыгрыша нет.", reply_markup=main_keyboard(is_admin=True))
+        return
+
+    await state.clear()
+    await message.answer("Создание розыгрыша отменено.", reply_markup=main_keyboard(is_admin=True))
 
 
 @admin_router.callback_query(F.data == "giveaway:confirm")
 async def confirm_creation(callback: CallbackQuery, state: FSMContext) -> None:
-    if callback.from_user.id != settings.ADMIN_ID:
-        await callback.answer("Недостаточно прав", show_alert=True)
-        return
-
     data = await state.get_data()
     title = _extract_title(data["announcement_message"])
     actual_start, actual_end = _resolve_schedule(data["starts_at"], data["duration"])
@@ -299,15 +303,17 @@ async def confirm_creation(callback: CallbackQuery, state: FSMContext) -> None:
         await publish_due_giveaways(bot)
     await state.clear()
     await callback.message.edit_text( # type: ignore
-        "Розыгрыш сохранён и будет опубликован автоматически в указанное время.",
+        "Розыгрыш сохранён и будет опубликован автоматически в указанное время."
     )
     await callback.answer("Готово")
+    await callback.message.answer("Главное меню.", reply_markup=main_keyboard()) # type: ignore
+
 
 
 @admin_router.callback_query(F.data == "home:show")
 async def show_home(callback: CallbackQuery) -> None:
     await callback.message.answer( # type: ignore
         "Возвращаюсь в главное меню.",
-        reply_markup=main_keyboard(is_admin=callback.from_user.id == settings.ADMIN_ID),
+        reply_markup=main_keyboard(),
     )
     await callback.answer()

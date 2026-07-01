@@ -26,7 +26,6 @@
 Скопируйте `.env.example` и заполните:
 - `BOT_TOKEN`
 - `BASE_SITE`
-- `ADMIN_ID`
 - `HCAPTCHA_SITE_KEY`
 - `HCAPTCHA_SECRET`
 
