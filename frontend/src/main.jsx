@@ -351,6 +351,12 @@ function JoinCard({ giveaway, joinState, captchaRef, captchaToken, captchaReady,
       {captchaError ? <div className="error">{captchaError}</div> : null}
       {active && giveaway.require_captcha && !captchaReady && !captchaError ? <div className="subtle">Загружаю hCaptcha...</div> : null}
       {error ? <div className="error">{error}</div> : null}
+      <div className="actions">
+        <button className="button button--accent button--wide" style={{ background: buttonColor }} 
+        disabled={!active || (giveaway.require_captcha && !captchaToken) || joinState === 'loading'} 
+        onClick={onJoin}>{joinState === 'loading' ? 'Проверяем...' : 'Участвовать'}</button>
+        <button className="button button--ghost button--wide" onClick={onClose}>Закрыть мини-апп</button>
+      </div>
     </section>
   );
 }

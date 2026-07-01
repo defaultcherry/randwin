@@ -275,7 +275,7 @@ async def finish_due_giveaways(bot: Bot) -> None:
         for giveaway in giveaways:
             participants = list(giveaway.participants)
             winners = random.sample(participants, k=min(giveaway.prize_places, len(participants)))
-            winner_ids = [user.telegram_id for user in winners]
+            winner_ids = [user.telegram_id for user in winners] # TODO: recheck sub status
             winner_snapshots = [await build_winner_snapshot(bot, user) for user in winners]
             giveaway.winner_ids = winner_ids
             giveaway.winner_snapshots = winner_snapshots
