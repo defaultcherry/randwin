@@ -330,7 +330,7 @@ async def finish_due_giveaways(bot: Bot) -> None:
 def build_channel_post_text(giveaway: Giveaway) -> str:
     return (
         f"🎁 <b>{escape(giveaway.title)}</b>\n\n"
-        f"{escape(giveaway.announcement_message)}\n\n"
+        f"{giveaway.announcement_message}\n\n"
         f"🏆 Призовых мест: <b>{giveaway.prize_places}</b>\n"
         f"👥 Участников: <b>{len(giveaway.participants)}</b>\n"
         f"⏳ Завершение: <b>{normalize_datetime(giveaway.ends_at).astimezone(MSK_TZ).strftime('%Y-%m-%d %H:%M MSK')}</b>\n\n"

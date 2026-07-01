@@ -1,4 +1,5 @@
 import re
+from html import unescape
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -31,6 +32,7 @@ class GiveawayCreation(StatesGroup):
 
 RELATIVE_TIME_HINT = "2:30 или 1d 02:30"
 RELATIVE_TIME_RE = re.compile(r"^(?:(?P<days>\d+)\s*(?:d|д))?\s*(?P<hours>\d{1,3}):(?P<minutes>\d{2})(?::(?P<seconds>\d{2}))?$")
+HTML_TAG_RE = re.compile(r"<[^>]+>")
 
 
 def _parse_datetime(value: str) -> datetime:
@@ -70,6 +72,17 @@ def _resolve_schedule(starts_at: datetime, duration: timedelta, *, now: datetime
     actual_start = max(starts_at, current)
     actual_end = actual_start + duration
     return actual_start, actual_end
+
+
+def _strip_html(text: str) -> str:
+    return HTML_TAG_RE.sub("", unescape(text)).strip()
+
+
+def _extract_title(message_html: str) -> str:
+    lines = message_html.splitlines()
+    first_line = next((line for line in lines if line.strip()), message_html)
+    title = _strip_html(first_line)
+    return title[:120]
 
 
 def _format_preview(data: dict) -> str:
@@ -150,7 +163,7 @@ async def set_channel(message: Message, state: FSMContext) -> None:
 
 @admin_router.message(GiveawayCreation.announcement_message, F.from_user.id == settings.ADMIN_ID)
 async def set_message(message: Message, state: FSMContext) -> None:
-    await state.update_data(announcement_message=message.text.strip()) # type: ignore
+    await state.update_data(announcement_message=message.html_text.strip())
     await state.set_state(GiveawayCreation.button_color)
     await message.answer(
         "Выберите цвет кнопки из доступных вариантов.",
@@ -256,7 +269,7 @@ async def confirm_creation(callback: CallbackQuery, state: FSMContext) -> None:
         return
 
     data = await state.get_data()
-    title = data["announcement_message"].splitlines()[0][:120]
+    title = _extract_title(data["announcement_message"])
     actual_start, actual_end = _resolve_schedule(data["starts_at"], data["duration"])
     actual_start_db = to_db_utc(actual_start)
     actual_end_db = to_db_utc(actual_end)
